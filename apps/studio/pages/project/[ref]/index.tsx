@@ -13,7 +13,6 @@ const HomePage: NextPageWithLayout = () => {
   if (isHomeNew && isHomeNewPH) {
     return <HomeV2 />
   }
-
   return <Home />
 }
 

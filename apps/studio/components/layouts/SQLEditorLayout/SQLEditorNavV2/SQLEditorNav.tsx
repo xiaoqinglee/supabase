@@ -322,21 +322,6 @@ export const SQLEditorNav = ({ sort = 'inserted_at' }: SQLEditorNavProps) => {
     if (ids.length > 0) ids.forEach((id) => snapV2.removeSnippet(id))
   }
 
-  const onConfirmDelete = () => {
-    if (!projectRef) return console.error('Project ref is required')
-    deleteContent(
-      { projectRef, ids: selectedSnippets.map((x) => x.id) },
-      {
-        onSuccess: (data) => {
-          toast.success(
-            `Successfully deleted ${selectedSnippets.length.toLocaleString()} quer${selectedSnippets.length > 1 ? 'ies' : 'y'}`
-          )
-          postDeleteCleanup(data)
-        },
-      }
-    )
-  }
-
   const onConfirmDeleteFolder = async () => {
     if (!projectRef) return console.error('Project ref is required')
     if (selectedFolderToDelete === undefined) return console.error('No folder is selected')

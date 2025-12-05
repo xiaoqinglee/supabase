@@ -71,13 +71,13 @@ export const MoveQueryModal = ({ visible, snippets = [], onClose }: MoveQueryMod
   const [open, setOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string>()
 
-  const { mutateAsync: createFolder, isLoading: isCreatingFolder } =
+  const { mutateAsync: createFolder, isPending: isCreatingFolder } =
     useSQLSnippetFolderCreateMutation({
       onError: (error) => {
         toast.error(`Failed to create new folder: ${error.message}`)
       },
     })
-  const { mutateAsync: moveSnippetAsync, isLoading: isMovingSnippet } = useContentUpsertMutation({
+  const { mutateAsync: moveSnippetAsync, isPending: isMovingSnippet } = useContentUpsertMutation({
     onError: (error) => {
       toast.error(`Failed to move query: ${error.message}`)
     },

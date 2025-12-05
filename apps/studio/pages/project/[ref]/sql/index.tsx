@@ -10,7 +10,7 @@ import { useDashboardHistory } from 'hooks/misc/useDashboardHistory'
 import { useTabsStateSnapshot } from 'state/tabs'
 import type { NextPageWithLayout } from 'types'
 
-const SqlEditorPage: NextPageWithLayout = () => {
+const SQLEditorIndexPage: NextPageWithLayout = () => {
   const router = useRouter()
   const { ref: projectRef } = useParams()
   const store = useTabsStateSnapshot()
@@ -18,18 +18,20 @@ const SqlEditorPage: NextPageWithLayout = () => {
   const { history, isHistoryLoaded } = useDashboardHistory()
 
   useEffect(() => {
-    // Handle redirect to last opened snippet tab, or last snippet tab
-    const lastOpenedTab = history.sql
-    const lastTabId = store.openTabs.find((id) => store.tabsMap[id]?.type === 'sql')
-    if (lastOpenedTab !== undefined) {
-      router.push(`/project/${projectRef}/sql/${history.sql}`)
-    } else if (lastTabId) {
-      const lastTab = store.tabsMap[lastTabId]
-      if (lastTab) {
-        router.push(`/project/${projectRef}/sql/${lastTab.id.replace('sql-', '')}`)
+    if (isHistoryLoaded) {
+      // Handle redirect to last opened snippet tab, or last snippet tab
+      const lastOpenedTab = history.sql
+      const lastTabId = store.openTabs.find((id) => store.tabsMap[id]?.type === 'sql')
+      if (lastOpenedTab !== undefined) {
+        router.push(`/project/${projectRef}/sql/${history.sql}`)
+      } else if (lastTabId) {
+        const lastTab = store.tabsMap[lastTabId]
+        if (lastTab) {
+          router.push(`/project/${projectRef}/sql/${lastTab.id.replace('sql-', '')}`)
+        }
+      } else {
+        router.push(`/project/${projectRef}/sql/new`)
       }
-    } else {
-      router.push(`/project/${projectRef}/sql/new`)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHistoryLoaded])
@@ -37,7 +39,7 @@ const SqlEditorPage: NextPageWithLayout = () => {
   return null
 }
 
-SqlEditorPage.getLayout = (page) => (
+SQLEditorIndexPage.getLayout = (page) => (
   <DefaultLayout>
     <EditorBaseLayout productMenu={<SQLEditorMenu />} product="SQL Editor">
       <SQLEditorLayout>{page}</SQLEditorLayout>
@@ -45,4 +47,4 @@ SqlEditorPage.getLayout = (page) => (
   </DefaultLayout>
 )
 
-export default SqlEditorPage
+export default SQLEditorIndexPage
