@@ -19,10 +19,10 @@ const SqlEditorPage: NextPageWithLayout = () => {
 
   useEffect(() => {
     // Handle redirect to last opened snippet tab, or last snippet tab
-    const lastOpenedTab = appSnap.dashboardHistory.sql
+    const lastOpenedTab = history.sql
     const lastTabId = store.openTabs.find((id) => store.tabsMap[id]?.type === 'sql')
     if (lastOpenedTab !== undefined) {
-      router.push(`/project/${projectRef}/sql/${appSnap.dashboardHistory.sql}`)
+      router.push(`/project/${projectRef}/sql/${history.sql}`)
     } else if (lastTabId) {
       const lastTab = store.tabsMap[lastTabId]
       if (lastTab) {

@@ -13,6 +13,8 @@ import {
   compareAsNewSnippet,
   createSqlSnippetSkeletonV2,
 } from './SQLEditor.utils'
+import { useAsyncCheckPermissions } from 'hooks/misc/useCheckPermissions'
+import { useSelectedProjectQuery } from 'hooks/misc/useSelectedProject'
 
 export const useNewQuery = () => {
   const router = useRouter()

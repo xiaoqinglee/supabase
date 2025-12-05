@@ -149,6 +149,7 @@ const UtilityPanel = ({
           id={id}
           isExecuting={isExecuting}
           isDisabled={isDisabled}
+          hasSelection={hasSelection}
           prettifyQuery={prettifyQuery}
           executeQuery={executeQuery}
         />

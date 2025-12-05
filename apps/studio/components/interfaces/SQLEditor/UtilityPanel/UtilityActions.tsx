@@ -26,6 +26,7 @@ export type UtilityActionsProps = {
   id: string
   isExecuting?: boolean
   isDisabled?: boolean
+  hasSelection?: boolean
   prettifyQuery: () => void
   executeQuery: () => void
 }
@@ -34,6 +35,7 @@ const UtilityActions = ({
   id,
   isExecuting = false,
   isDisabled = false,
+  hasSelection = false,
   prettifyQuery,
   executeQuery,
 }: UtilityActionsProps) => {

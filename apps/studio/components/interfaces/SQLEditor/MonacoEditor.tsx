@@ -188,8 +188,8 @@ const MonacoEditor = ({
   function handleEditorChange(value: string | undefined) {
     tabsSnap.makeActiveTabPermanent()
     if (id && value) {
-      if (snippetCheck) {
-        debouncedSetSql(id, value)
+      if (!!snippet) {
+        setValue(value)
       } else {
         if (ref && profile !== undefined && project !== undefined) {
           const snippet = createSqlSnippetSkeletonV2({

@@ -14,21 +14,14 @@ import EditorMenuListSkeleton from 'components/layouts/TableEditorLayout/EditorM
 import { useSqlEditorTabsCleanup } from 'components/layouts/Tabs/Tabs.utils'
 import { useContentCountQuery } from 'data/content/content-count-query'
 import { useContentDeleteMutation } from 'data/content/content-delete-mutation'
-import { getContentById } from 'data/content/content-id-query'
-import { upsertContent } from 'data/content/content-upsert-mutation'
 import { useSQLSnippetFoldersDeleteMutation } from 'data/content/sql-folders-delete-mutation'
 import { Snippet, SnippetFolder, useSQLSnippetFoldersQuery } from 'data/content/sql-folders-query'
 import { useSqlSnippetsQuery } from 'data/content/sql-snippets-query'
 import { useLocalStorage } from 'hooks/misc/useLocalStorage'
 import { useSelectedProjectQuery } from 'hooks/misc/useSelectedProject'
 import { useProfile } from 'lib/profile'
-import {
-  SnippetWithContent,
-  useSnippetFolders,
-  useSqlEditorV2StateSnapshot,
-} from 'state/sql-editor-v2'
+import { useSnippetFolders, useSqlEditorV2StateSnapshot } from 'state/sql-editor-v2'
 import { createTabId, useTabsStateSnapshot } from 'state/tabs'
-import { SqlSnippets } from 'types'
 import { TreeView } from 'ui'
 import {
   InnerSideBarEmptyPanel,
@@ -344,85 +337,6 @@ export const SQLEditorNav = ({ sort = 'inserted_at' }: SQLEditorNavProps) => {
     )
   }
 
-  const onUpdateVisibility = async (action: 'share' | 'unshare') => {
-    const snippet = action === 'share' ? selectedSnippetToShare : selectedSnippetToUnshare
-    if (!projectRef) return console.error('Project ref is required')
-    if (!snippet) return console.error('Snippet ID is required')
-
-    const storeSnippet = snapV2.snippets[snippet.id]
-    let snippetContent = storeSnippet?.snippet?.content
-
-    if (snippetContent === undefined) {
-      const { content } = await getContentById({ projectRef, id: snippet.id })
-      snippetContent = content as unknown as SqlSnippets.Content
-    }
-
-    // [Joshen] Just as a final check - to ensure that the content is minimally there (empty string is fine)
-    if (snippetContent === undefined) {
-      return toast.error('Unable to update snippet visibility: Content is missing')
-    }
-
-    const visibility = action === 'share' ? 'project' : 'user'
-
-    upsertContent(
-      {
-        projectRef,
-        payload: {
-          ...snippet,
-          visibility,
-          folder_id: null,
-          content: snippetContent,
-        },
-      },
-      {
-        onSuccess: () => {
-          setSelectedSnippetToShare(undefined)
-          setSelectedSnippetToUnshare(undefined)
-          setSectionVisibility({ ...sectionVisibility, shared: true })
-          snapV2.updateSnippet({
-            id: snippet.id,
-            snippet: { visibility, folder_id: null },
-            skipSave: true,
-          })
-          toast.success(
-            action === 'share'
-              ? 'Snippet is now shared to the project'
-              : 'Snippet is now unshared from the project'
-          )
-        },
-      }
-    )
-  }
-
-  const onSelectDuplicate = async (snippet: SnippetWithContent) => {
-    if (!profile) return console.error('Profile is required')
-    if (!project) return console.error('Project is required')
-    if (!projectRef) return console.error('Project ref is required')
-    if (!id) return console.error('Snippet ID is required')
-
-    let sql: string = ''
-    if (snippet.content && snippet.content.sql) {
-      sql = snippet.content.sql
-    } else {
-      // Fetch the content first
-      const { content } = await getContentById({ projectRef, id: snippet.id })
-      if ('sql' in content) {
-        sql = content.sql
-      }
-    }
-
-    const snippetCopy = createSqlSnippetSkeletonV2({
-      name: `${snippet.name} (Duplicate)`,
-      sql,
-      owner_id: profile?.id,
-      project_id: project?.id,
-    })
-
-    snapV2.addSnippet({ projectRef, snippet: snippetCopy })
-    snapV2.addNeedsSaving(snippetCopy.id!)
-    router.push(`/project/${projectRef}/sql/${snippetCopy.id}`)
-  }
-
   const onConfirmDeleteFolder = async () => {
     if (!projectRef) return console.error('Project ref is required')
     if (selectedFolderToDelete === undefined) return console.error('No folder is selected')
@@ -600,9 +514,6 @@ export const SQLEditorNav = ({ sort = 'inserted_at' }: SQLEditorNavProps) => {
                         onSelectDownload={() => {
                           setSelectedSnippetToDownload(element.metadata as Snippet)
                         }}
-                        onSelectDuplicate={() => {
-                          onSelectDuplicate(element.metadata as Snippet)
-                        }}
                         onSelectUnshare={() => {
                           setSelectedSnippetToUnshare(element.metadata as Snippet)
                         }}
@@ -684,9 +595,6 @@ export const SQLEditorNav = ({ sort = 'inserted_at' }: SQLEditorNavProps) => {
                         }}
                         onSelectDownload={() => {
                           setSelectedSnippetToDownload(element.metadata as Snippet)
-                        }}
-                        onSelectDuplicate={() => {
-                          onSelectDuplicate(element.metadata as Snippet)
                         }}
                         onSelectShare={() => setSelectedSnippetToShare(element.metadata as Snippet)}
                         onSelectUnshare={() => {
