@@ -3,6 +3,8 @@ import { useRouter } from 'next/router'
 import { useState } from 'react'
 
 import { LOCAL_STORAGE_KEYS, useParams } from 'common'
+import { useParams } from 'common'
+import { generateSnippetTitle } from 'components/interfaces/SQLEditor/SQLEditor.constants'
 import {
   createSqlSnippetSkeletonV2,
   suffixWithLimit,
@@ -14,8 +16,12 @@ import { useExecuteSqlMutation } from 'data/sql/execute-sql-mutation'
 import { useLocalStorageQuery } from 'hooks/misc/useLocalStorage'
 import { useSelectedOrganizationQuery } from 'hooks/misc/useSelectedOrganization'
 import { useSelectedProjectQuery } from 'hooks/misc/useSelectedProject'
+import { useCheckOpenAIKeyQuery } from 'data/ai/check-api-key-query'
+import { useSqlTitleGenerateMutation } from 'data/ai/sql-title-mutation'
+import { QueryResponseError, useExecuteSqlMutation } from 'data/sql/execute-sql-mutation'
+import { useOrgAiOptInLevel } from 'hooks/misc/useOrgOptedIntoAi'
+import { useSelectedProject } from 'hooks/misc/useSelectedProject'
 import { BASE_PATH } from 'lib/constants'
-import { uuidv4 } from 'lib/helpers'
 import { useProfile } from 'lib/profile'
 import { useEditorPanelStateSnapshot } from 'state/editor-panel-state'
 import { useSidebarManagerSnapshot } from 'state/sidebar-manager-state'
@@ -37,6 +43,7 @@ import {
   Popover_Shadcn_,
   PopoverContent_Shadcn_,
   PopoverTrigger_Shadcn_,
+  SheetHeader,
   SQL_ICON,
 } from 'ui'
 import { Admonition } from 'ui-patterns'
@@ -44,6 +51,9 @@ import { containsUnknownFunction, isReadOnlySelect } from '../AIAssistantPanel/A
 import AIEditor from '../AIEditor'
 import { ButtonTooltip } from '../ButtonTooltip'
 import { SqlWarningAdmonition } from '../SqlWarningAdmonition'
+import org from 'pages/org'
+import { ref } from 'yup'
+import { InlineLink } from '../InlineLink'
 
 export const EditorPanel = () => {
   const {
@@ -60,24 +70,11 @@ export const EditorPanel = () => {
   } = useEditorPanelStateSnapshot()
   const { closeSidebar } = useSidebarManagerSnapshot()
   const { profile } = useProfile()
-  const sqlEditorSnap = useSqlEditorV2StateSnapshot()
-
-  const label = 'SQL Editor'
-  const [isInlineEditorHotkeyEnabled] = useLocalStorageQuery<boolean>(
-    LOCAL_STORAGE_KEYS.HOTKEY_SIDEBAR(SIDEBAR_KEYS.EDITOR_PANEL),
-    true
-  )
-  const [isAIAssistantHotkeyEnabled] = useLocalStorageQuery<boolean>(
-    LOCAL_STORAGE_KEYS.HOTKEY_SIDEBAR(SIDEBAR_KEYS.AI_ASSISTANT),
-    true
-  )
-
-  const currentValue = value || ''
-
-  const { ref } = useParams()
-  const router = useRouter()
-  const { data: project } = useSelectedProjectQuery()
-  const { data: org } = useSelectedOrganizationQuery()
+  const snapV2 = useSqlEditorV2StateSnapshot()
+  const { mutateAsync: generateSqlTitle } = useSqlTitleGenerateMutation()
+  const { data: check } = useCheckOpenAIKeyQuery()
+  const isApiKeySet = !!check?.hasKey
+  const { includeSchemaMetadata } = useOrgAiOptInLevel()
 
   const [showWarning, setShowWarning] = useState<'hasWriteOperation' | 'hasUnknownFunctions'>()
   const [showResults, setShowResults] = useState(true)
@@ -226,29 +223,104 @@ export const EditorPanel = () => {
             onClick={() => {
               if (!ref) return console.error('Project ref is required')
 
-              if (!project) {
-                console.error('Project is required')
-                return
+                try {
+                  setIsSaving(true)
+                  let name = generateSnippetTitle()
+                  if (isApiKeySet) {
+                    const { title } = await generateSqlTitle({
+                      sql: currentValue,
+                    })
+                    name = title
+                  }
+                  const snippet = createSqlSnippetSkeletonV2({
+                    name,
+                    sql: currentValue,
+                    owner_id: profile.id,
+                    project_id: project.id,
+                  })
+                  snapV2.addSnippet({ projectRef: ref, snippet })
+                  snapV2.addNeedsSaving(snippet.id)
+                  toast.success(
+                    <div>
+                      Saved snippet! View it{' '}
+                      <InlineLink href={`/project/${ref}/sql/${snippet.id}`}>here</InlineLink>
+                    </div>
+                  )
+                } catch (error: any) {
+                  toast.error(`Failed to create new query: ${error.message}`)
+                } finally {
+                  setIsSaving(false)
+                }
+              }}
+            />
+
+            <ButtonTooltip
+              size="tiny"
+              type="default"
+              className="w-7 h-7"
+              onClick={onClose}
+              icon={<X size={16} />}
+              tooltip={{
+                content: {
+                  side: 'bottom',
+                  text: (
+                    <div className="flex items-center gap-4">
+                      <span>Close Editor</span>
+                      <KeyboardShortcut keys={['Meta', 'e']} />
+                    </div>
+                  ),
+                },
+              }}
+            />
+          </div>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-hidden flex flex-col h-full">
+          <div className="flex-1 min-h-0 relative">
+            <AIEditor
+              autoFocus
+              language="pgsql"
+              value={currentValue}
+              onChange={handleChange}
+              aiEndpoint={`${BASE_PATH}/api/ai/sql/complete-v2`}
+              aiMetadata={{
+                projectRef: project?.ref,
+                connectionString: project?.connectionString,
+                includeSchemaMetadata,
+              }}
+              initialPrompt={initialPrompt}
+              options={{
+                tabSize: 2,
+                fontSize: 13,
+                minimap: { enabled: false },
+                wordWrap: 'on',
+                lineNumbers: 'on',
+                folding: false,
+                padding: { top: 16 },
+                lineNumbersMinChars: 3,
+              }}
+              executeQuery={onExecuteSql}
+              onClose={() => onClose()}
+            />
+          </div>
+
+          {error !== undefined && (
+            <div className="shrink-0">
+              <Admonition
+                type="warning"
+                className="m-0 rounded-none border-x-0 border-b-0 [&>div>div>pre]:text-sm [&>div]:flex [&>div]:flex-col [&>div]:gap-y-2"
+                title={errorHeader || 'Error running SQL query'}
+                description={
+                  <div>
+                    Saved snippet! View it{' '}
+                    <InlineLink href={`/project/${ref}/sql/${snippet.id}`}>here</InlineLink>
+                  </div>
+                )
+              } catch (error: any) {
+                toast.error(`Failed to create new query: ${error.message}`)
+              } finally {
+                setIsSaving(false)
               }
-              if (!profile) {
-                console.error('Profile is required')
-                return
-              }
-
-              const snippet = createSqlSnippetSkeletonV2({
-                id: uuidv4(),
-                name: 'New query',
-                sql: currentValue,
-                owner_id: profile.id,
-                project_id: project.id,
-              })
-
-              sqlEditorSnap.addSnippet({ projectRef: ref, snippet })
-              sqlEditorSnap.addNeedsSaving(snippet.id)
-
-              router.push(`/project/${ref}/sql/${snippet.id}`)
-              handleClosePanel()
-            }}
           />
 
           <ButtonTooltip
